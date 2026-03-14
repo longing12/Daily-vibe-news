@@ -27,17 +27,20 @@ jobs:
           from telegram import Bot
 
           async def main():
-              # S&P 500, 나스닥 등 경제 중심 뉴스 수집
+              # S&P 500, 나스닥 등 경제 뉴스 수집 (지난 24시간 내)
               rss_url = "https://news.google.com/rss/search?q=%26P500+Nasdaq+economy&hl=ko&gl=KR&ceid=KR:ko&tbs=qdr:d"
-
+              feed = feedparser.parse(rss_url)
               
-              news_items = []
-              for e in feed.entries[:5]:
-                  news_items.append(f"📌 {e.title}\n🔗 {e.link}")
-              
-              msg = "📢 [경제 Vibe 체크]\n\n" + "\n\n".join(news_items)
-              msg += "\n\n💰 원칙 투자를 응원합니다!"
-              
+              # 기사가 있는지 먼저 확인
+              if not feed.entries:
+                  msg = "오늘 아직 새로운 경제 뉴스가 올라오지 않았네요! 조금만 더 기다려볼까요? 🧐"
+              else:
+                  news_items = []
+                  for e in feed.entries[:5]:
+                      news_items.append(f"📌 {e.title}\n🔗 {e.link}")
+                  msg = "📢 [경제 Vibe 체크]\n\n" + "\n\n".join(news_items)
+                  msg += "\n\n💪 완벽 투자를 응원합니다!"
+                  
               await Bot(token=os.environ['TELEGRAM_TOKEN']).send_message(chat_id=os.environ['CHAT_ID'], text=msg)
 
           if __name__ == "__main__":
