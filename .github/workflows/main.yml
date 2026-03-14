@@ -1,0 +1,45 @@
+name: Daily Economy News
+
+on:
+  schedule:
+    - cron: '00 23 * * *' # 세계 표준시 기준 (한국 시간 오전 8시 00분)
+  workflow_dispatch: # 수동 실행 버튼 추가
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          pip install feedparser python-telegram-bot
+      - name: Run Script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python - <<EOF
+          import os, feedparser, asyncio
+          from telegram import Bot
+
+          async def main():
+              # S&P 500, 나스닥 등 경제 중심 뉴스 수집
+              rss_url = "https://news.google.com/rss/search?q=S%26P500+Nasdaq+economy&hl=ko&gl=KR&ceid=KR:ko"
+              feed = feedparser.parse(rss_url)
+              
+              news_items = []
+              for e in feed.entries[:5]:
+                  news_items.append(f"📌 {e.title}\n🔗 {e.link}")
+              
+              msg = "📢 [경제 Vibe 체크]\n\n" + "\n\n".join(news_items)
+              msg += "\n\n💰 원칙 투자를 응원합니다!"
+              
+              await Bot(token=os.environ['TELEGRAM_TOKEN']).send_message(chat_id=os.environ['CHAT_ID'], text=msg)
+
+          if __name__ == "__main__":
+              asyncio.run(main())
+          EOF
