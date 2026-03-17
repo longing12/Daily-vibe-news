@@ -2,7 +2,7 @@ name: Daily Economy News
 
 on:
   schedule:
-    - cron: '00 23 * * *' # 세계 표준시 기준 (한국 시간 오전 8시 00분)
+    - cron: '00 23 * * *' # 한국 시간 오전 8시 00분
   workflow_dispatch:
 
 jobs:
@@ -27,22 +27,38 @@ jobs:
           from telegram import Bot
 
           async def main():
-              # 한국경제 경제 뉴스 RSS로 변경 (항상 최신순)
-              rss_url = "https://rss.hankyung.com/feeds/economy.xml"
-              feed = feedparser.parse(rss_url)
+              # 관심 있는 경제지 RSS 리스트
+              rss_urls = [
+                  "https://rss.hankyung.com/feeds/economy.xml",  # 한국경제
+                  "https://www.mk.co.kr/rss/30100041/",           # 매일경제
+                  "https://news.google.com/rss/search?q=economy+site:economy.chosun.com+OR+site:economist.co.kr&hl=ko&gl=KR&ceid=KR:ko" # 주요 경제 주간지/이코노미
+              ]
               
-              if not feed.entries:
-                  msg = "오늘 새로운 경제 뉴스가 아직 업데이트되지 않았네요! 🧐"
+              keywords = ["금리", "유가"]
+              news_items = []
+
+              for url in rss_urls:
+                  feed = feedparser.parse(url)
+                  for e in feed.entries[:15]: # 각 매체당 최신 15개를 훑어봅니다.
+                      title = e.get('title', '')
+                      # 제목에 '금리' 또는 '유가'가 포함되어 있는지 확인
+                      if any(kw in title for kw in keywords):
+                          link = e.get('link', '#')
+                          # 중복 기사 방지
+                          item = f"📌 {title}\n🔗 {link}"
+                          if item not in news_items:
+                              news_items.append(item)
+              
+              if not news_items:
+                  msg = "📢 [경제 키워드 체크]\n\n오늘은 '금리'나 '유가'와 관련된 새로운 소식이 없네요. 평온한 하루입니다! 😊"
               else:
-                  news_items = []
-                  # 상위 5개만 가져오되 최신순으로 정렬
-                  for e in feed.entries[:5]:
-                      news_items.append(f"📌 {e.title}\n🔗 {e.link}")
-                  msg = "📢 [경제 Vibe 체크 - 최신 경제 뉴스]\n\n" + "\n\n".join(news_items)
-                  msg += "\n\n💪 오늘도 화이팅하세요!"
+                  # 최대 7개까지만 요약해서 보냅니다.
+                  msg = "📢 [금리 & 유가 맞춤 브리핑]\n\n" + "\n\n".join(news_items[:7])
+                  msg += "\n\n💪 설정하신 키워드 위주로 정리해 드렸습니다!"
                   
-              await Bot(token=os.environ['TELEGRAM_TOKEN']).send_message(chat_id=os.environ['CHAT_ID'], text=msg)
+              await Bot(token=os.environ['TELEGRAM_TOKEN']).send_message(chat_id=os.environ['CHAT_ID'], text=msg, disable_web_page_preview=True)
 
           if __name__ == "__main__":
               asyncio.run(main())
           EOF
+
